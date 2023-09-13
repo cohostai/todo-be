@@ -1,34 +1,56 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { TodoService } from './todo.service';
 import { CreateTodoDto } from './dto/create-todo.dto';
-import { UpdateTodoDto } from './dto/update-todo.dto';
+import {
+  Body,
+  Controller,
+  DefaultValuePipe,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/common';
+import { CurrentUser } from 'src/common/decorators';
 
 @Controller('todo')
+@ApiTags('Todo')
+@ApiBearerAuth()
 export class TodoController {
   constructor(private readonly todoService: TodoService) {}
 
   @Post()
-  create(@Body() createTodoDto: CreateTodoDto) {
-    return this.todoService.create(createTodoDto);
+  @UseGuards(JwtAuthGuard)
+  async create(
+    @CurrentUser('_id') userId: string,
+    @Body() createTodoDto: CreateTodoDto,
+  ): Promise<any> {
+    return this.todoService.create(userId, createTodoDto);
   }
 
   @Get()
-  findAll() {
-    return this.todoService.findAll();
+  @UseGuards(JwtAuthGuard)
+  async findAll(
+    @CurrentUser('_id') userId: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ): Promise<any> {
+    return this.todoService.findPaginate(userId, page, limit);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.todoService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTodoDto: UpdateTodoDto) {
-    return this.todoService.update(+id, updateTodoDto);
+  async findOne(@Param('id') id: string) {
+    const todo = await this.todoService.findOne(id);
+    if (todo == null) throw new NotFoundException('Todo not found');
+    return todo;
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.todoService.remove(+id);
+    return this.todoService.remove(id);
   }
 }

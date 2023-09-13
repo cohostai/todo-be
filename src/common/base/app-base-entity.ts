@@ -1,11 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Transform } from 'class-transformer';
-import {
-  Column,
-  CreateDateColumn,
-  ObjectIdColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { CreateDateColumn, ObjectIdColumn, UpdateDateColumn } from 'typeorm';
 
 export class AppBaseEntity {
   @ObjectIdColumn()

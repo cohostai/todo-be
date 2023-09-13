@@ -1,26 +1,46 @@
 import { Injectable } from '@nestjs/common';
 import { CreateTodoDto } from './dto/create-todo.dto';
 import { UpdateTodoDto } from './dto/update-todo.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Todo } from './entities/todo.entity';
+import { MongoRepository } from 'typeorm';
+import { paginateResponse } from 'src/common';
+import { ObjectId } from 'mongodb';
 
 @Injectable()
 export class TodoService {
-  create(createTodoDto: CreateTodoDto) {
-    return 'This action adds a new todo';
+  constructor(
+    @InjectRepository(Todo)
+    private readonly todoRepository: MongoRepository<Todo>,
+  ) {}
+
+  create(userId: string, createTodoDto: CreateTodoDto) {
+    return this.todoRepository.save({
+      ...createTodoDto,
+      userId: userId,
+    });
   }
 
-  findAll() {
-    return `This action returns all todo`;
+  async findPaginate(userId: string, page: number, limit: number) {
+    const skip = (page - 1) * limit;
+    const todos = await this.todoRepository.findAndCount({
+      where: { userId: userId },
+      skip: skip,
+      take: limit,
+      order: { createdAt: 'DESC' },
+    });
+    return paginateResponse(todos, page, limit);
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} todo`;
+  async update(id: string, updateTodoDto: UpdateTodoDto) {
+    return this.todoRepository.update(id, updateTodoDto);
   }
 
-  update(id: number, updateTodoDto: UpdateTodoDto) {
-    return `This action updates a #${id} todo`;
+  async remove(id: string) {
+    return this.todoRepository.delete(id);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} todo`;
+  async findOne(id: string) {
+    return this.todoRepository.findOne({ where: { _id: new ObjectId(id) } });
   }
 }

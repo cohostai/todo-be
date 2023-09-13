@@ -5,7 +5,7 @@ import { User } from './entities/user.entity';
 import { MongoRepository } from 'typeorm';
 import { hash } from 'src/common';
 import { ConfigService } from '@nestjs/config';
-
+import { ObjectId } from 'mongodb';
 @Injectable()
 export class UsersService {
   constructor(
@@ -23,7 +23,7 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<User> {
-    return this.userRepository.findOneBy({ _id: id });
+    return this.userRepository.findOne({ where: { _id: new ObjectId(id) } });
   }
 
   async registerUser(createUserDto: RegisterUserDto): Promise<any> {
@@ -34,7 +34,7 @@ export class UsersService {
       password,
       this.configService.get('saltOrRounds') ?? '10',
     );
-    return this.userRepository.save({
+    await this.userRepository.save({
       fullName: fullName,
       password: passportHash,
       userName: userName,

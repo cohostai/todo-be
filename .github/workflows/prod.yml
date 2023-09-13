@@ -1,0 +1,81 @@
+name: build_and_deploy_service_product
+on:
+  push:
+    branches:
+      - 'develop'
+    tags:
+      - 'v*'
+  # pull_request:
+  #   branches:
+  #     - 'develop'
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  CONTAINER_SERVICE_NAME: 'todo-be'
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_TOKEN }}
+
+      - name: Build vars
+        id: vars
+        run: |
+          echo "::set-output name=github_token::${{ secrets.GH_TOKEN }}"
+          echo "::set-output name=port::${{ secrets.PORT }}"
+          echo "::set-output name=node_env::${{ secrets.NODE_ENV }}"
+          echo "::set-output name=mongodb_url::${{ secrets.MONGODB_URL }}"
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          github-token: ${{ secrets.GH_TOKEN }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          secrets: |
+            "PORT=${{ steps.vars.outputs.port }}"
+
+      - name: Deploy package to server
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          port: ${{ secrets.SERVER_PORT }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script: |
+            docker login ${{env.REGISTRY}} -u ${{ github.actor }} -p ${{ steps.vars.outputs.github_token }}
+            docker pull ${{ steps.meta.outputs.tags }}
+            docker stop ${{env.CONTAINER_SERVICE_NAME}}
+            docker system prune -f
+            docker run -d -p ${{ steps.vars.outputs.port }}:${{ steps.vars.outputs.port }} \
+            --name ${{env.CONTAINER_SERVICE_NAME}} \
+            -e PORT=${{steps.vars.outputs.port}} \
+            -e MONGODB_URL=${{steps.vars.outputs.mongodb_url}} \
+            --network=host \
+            --restart=always \
+            ${{ steps.meta.outputs.tags }}

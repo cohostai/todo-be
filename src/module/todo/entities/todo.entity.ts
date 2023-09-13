@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Expose } from 'class-transformer';
+import { Expose, Transform } from 'class-transformer';
 import { AppBaseEntity } from 'src/common';
 import { Column, Entity } from 'typeorm';
 
@@ -8,6 +8,7 @@ export class Todo extends AppBaseEntity {
   @Expose()
   @Column()
   @ApiProperty()
+  @Transform(({ value }) => value.toString(), { toPlainOnly: true })
   userId: string;
 
   @Expose()

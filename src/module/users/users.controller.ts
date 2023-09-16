@@ -10,6 +10,7 @@ import { UsersService } from './users.service';
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiOkResponse,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -33,11 +34,12 @@ export class UsersController {
   @ApiOperation({ summary: 'Login' })
   @ApiBody({ type: LoginUserDto })
   @UseGuards(LocalAuthGuard)
-  @ApiResponse({
-    status: 201,
-    description: 'Login successfully',
-  })
   @ApiResponse({ status: 401, description: 'Login error' })
+  @ApiOkResponse({
+    status: 201,
+    description: 'User and token',
+    type: LoginResponse,
+  })
   async login(@Request() req): Promise<LoginResponse> {
     return {
       user: await this.usersService.findOne(req.user._id),
@@ -46,9 +48,12 @@ export class UsersController {
   }
   @Post('register')
   @ApiOperation({ summary: 'Register' })
-  @ApiResponse({
+  @ApiOkResponse({
+    description: 'Success',
+  })
+  @ApiOkResponse({
     status: 201,
-    description: 'User created successfully',
+    description: 'The user records',
   })
   async register(@Body() register: RegisterUserDto): Promise<User> {
     return this.usersService.registerUser(register);
@@ -56,6 +61,10 @@ export class UsersController {
 
   @Get('me')
   @ApiOperation({ summary: 'Get user profile' })
+  @ApiOkResponse({
+    description: 'User and token',
+    type: User,
+  })
   @UseGuards(JwtAuthGuard)
   async getProfile(@Request() req): Promise<User> {
     return this.usersService.findOne(req.user._id);
